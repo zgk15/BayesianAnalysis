@@ -35,4 +35,4 @@ schools_dat = {'J': 8,
                'sigma': [15, 10, 16, 11,  9, 11, 10, 18]}
 
 sm = pystan.StanModel(model_code=schools_code)
-fit = sm.sampling(data=schools_dat, iter=100, chains=2)
+fit = sm.sampling(data=schools_dat, iter=1000, chains=4, n_jobs=1)
