@@ -6,6 +6,7 @@ Created on Fri Jan 19 15:29:53 2018
 """
 
 import pystan
+#hello 
 
 schools_code = """
 data {
