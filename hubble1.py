@@ -38,13 +38,14 @@ model {
     c = 299792458.0;
     eta1 = 2.*sqrt(s*s*s+1.)*(1-0.1540*s+0.4304*s2+0.19097*s3+0.066941*s4)^(-1./8.);
     eta2 = 2.*sqrt(s*s*s+1.)*(a**(-4)-0.1540*s/(a**3)+0.4304*s2/(a**2)+0.19097*s3/a+0.066941*s4)^(-1./8.);
-    DL ~ normal(c/H0 * (1+z) * (eta1 - eta2));
-    mu ~ normal(25 - 5*log10(h) + 5*log10(DL));
+    DL = normal(c/H0 * (1+z) * (eta1 - eta2));
+    mu_th = normal(25 - 5*log10(h) + 5*log10(DL));
+    mu ~ //LIKELIHOOD FUNCTION
 }
 """
     
 data = loadtxt("jla_mub_0.txt")
-cov_matrix = loadtxt("jla_mub_covmatrix.txt")
+cov_matrix = loadtxt("jla_mub_covmatrix.txt").reshape([31,31])
 data_z = []
 data_mu = []
 for i in data:
