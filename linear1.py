@@ -7,7 +7,9 @@ Created on Fri Jan 19 15:29:53 2018
 
 import pystan
 import random as rnd
+import corner as corner
 
+#cornerdotpi
 linear_code = """
 data {
     int<lower=0> N; //Number of samples
@@ -37,4 +39,15 @@ linear_dat = {'N': N,
               'y': ys}
 
 sm = pystan.StanModel(model_code=linear_code)
-fit = sm.sampling(data=linear_dat, iter=1000, chains=4, n_jobs=1)
+fit = sm.sampling(data=linear_dat, iter=1000, chains=4, n_jobs=-1)
+
+chains = fit.extract()
+
+a,b,sig = chains['alpha'], chains['beta'],chains['sigma']
+data =[]
+for i in range(len(a)):
+    data.append([a[i],b[i],sig[i]])
+
+figure = corner.corner(data,labels=[r"$\alpha $", r"$\beta$", r"$\sigma$"],quantiles=[0.25, 0.5, 0.75],show_titles=True, title_kwargs={"fontsize": 12})
+    
+
