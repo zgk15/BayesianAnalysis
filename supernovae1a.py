@@ -8,6 +8,7 @@ Created on Fri Jan 26 12:34:58 2018
 import numpy as np
 import pystan
 from numpy import loadtxt
+import corner as corner
 
 
 def read_covariance(): 
@@ -39,16 +40,7 @@ def read_supernovae():
 
 fitting_code = """
 
-functions{
-    // Function to calculate the theoretical value of mu given a z
-    
-    //Calculate a given z 
-    real a(real z
-    ){
-    real a;
-    a = 1./ (1.+z); 
-    return(a);
-    }
+functions{   
     
     //Calculate eta given a and omega_m  
     real eta(real a,
@@ -58,14 +50,27 @@ functions{
     real s2;
     real s3;
     real s4;
-    real eta;
+    real eta_var;
+    real eta_const;
+    real eta1;
+    real eta2;
+    real eta3;
+    real eta4;
+    real eta5;
+    real eta6;
     s = ((1.-OmegaM)/OmegaM)^(1./3.);
     s2 = s*s;
     s3 = s*s*s;
     s4 = s*s*s*s;
-    eta = 2.*sqrt(s3+1.)*(a^(-4)-0.1540*s/(a^3)+0.4304*s2/(a^2)+0.19097*s3/a+0.066941*s4)^(-1./8.);
-    
-    return(eta);
+    eta_const = 2.0*sqrt(s3+1.0);
+    eta1 = 1/(a^4);
+    eta2 = -0.1540*s/(a^3);
+    eta3 = 0.4304*s2/(a*a);
+    eta4 = 0.19097*s3/a;
+    eta5 = 0.066941*s4;
+    eta6 = (eta1+eta2+eta3+eta4+eta5)^(-0.125);
+    eta_var = eta_const*eta6;
+    return(eta_var);   
      
   }
 
@@ -78,13 +83,13 @@ functions{
     
     real H0;
     real c;
-    real Dl;
+    real Dl_var;
     
     H0 = 100*h;
-    c = 299792458.0;
-    Dl = c/H0 * (1+z) * ( eta(1.0,OmegaM) - eta( 1./(1.+z), OmegaM));
+    c = 299792.4580;
+    Dl_var = c/H0 * (1+z) * ( eta(1.0,OmegaM) - eta( 1./(1.+z), OmegaM));
     
-    return(Dl);
+    return(Dl_var);
     }
 
     
@@ -94,11 +99,11 @@ functions{
     real OmegaM,
     int N
     ){
-    vector[N] mu_th;
+    vector[N] mu_th_var;
     for(i in 1:N){
-            mu_th[i] = 25.0 - 5.0*log10(h) + 5*log10(Dl(z[i], 1, OmegaM));
+            mu_th_var[i] = 25.0 - 5.0*log10(h) + 5*log10(Dl(z[i], 1, OmegaM));
     }
-    return(mu_th);
+    return(mu_th_var);
       
     }
     
@@ -132,7 +137,17 @@ data_stan = {'N': len(data_z),
               'cov': data_cov}
 
 sm = pystan.StanModel(model_code=fitting_code)
-fit = sm.sampling(data=data_stan, iter=10000, chains=10, n_jobs=-1)
+fit = sm.sampling(data=data_stan, iter=1000, chains=4, n_jobs=-1)
+
+chains = fit.extract()
+
+a,b = chains['OmegaM'], chains['h']
+data =[]
+for i in range(len(a)):
+    data.append([a[i],b[i]])
+
+figure = corner.corner(data,labels=[r"$\omega $", r"$h$"],quantiles=[0.25, 0.5, 0.75],show_titles=True, title_kwargs={"fontsize": 12})
+   
 
 
 
@@ -140,54 +155,11 @@ fit = sm.sampling(data=data_stan, iter=10000, chains=10, n_jobs=-1)
 
 
 
-
-
-
-
-
-#def likelihood( h , omega_m ):
-#    
-#    co_v_data = read_covariance()
-#    super_data = read_supernovae()
-#    
-#    temp_sum_ind = []
-#    
-#    for i in range(len(co_v_data)):
-#        for j in range(len(co_v_data)):
-#           a =  super_data[i][1]-mu_th( super_data[i][0],omega_m , h ) 
-#           b = super_data[j][1]-mu_th( super_data[j][0],omega_m , h )
-#           c = 1 / co_v_data[i][j]
-#           
-#           temp_sum_ind.append( -0.5 * a * b * c ) 
-#           
-#    return(np.sum(temp_sum_ind))
-#    
-#           
-#    
-#    
-#    
-#    
-#
-#def mu_th(z,omega_m, h):
-#
-#    25 - (5*np.log10(h)) +(5*np.log10(D_l(z,omega_m,h)))
-#    
-#def D_l(z, omega_m, h):
-#    H_0 = 100*h
-#    (c/H_0) * (1+z) * ( n_func(1, omega_m)  - n_func(1/(1+z), omega_m) ) 
-#    
-#def n_func(a,omega_m):
-#    
-#    s = np.cbrt((1-omega_m)/omega_m) 
-#    
-#    alpha = 2* np.sqrt(1 + (s**3))
-#    
-#    beta1 = ( 1/ (a**4))
-#    beta2 = ( 0.1540*s )/a**3
-#    beta3 = (0.4304* (s**2)) / a**2
-#    beta4 = 0.19097 * (s**3) / a
-#    beta5 = 0.066941 * (s**4)
-#    beta = (beta1 - beta2 + beta3 + beta4 +beta5)**(-1/8)
-#    
-#    return(alpha*beta)
-
+def fake_data(num_samples, OmegaM, h):
+    z = []
+    mu = []
+    for i in range(num_samples):
+        z.append(i)
+        mu.append(OmegaM*i + h)
+    return(z,mu)
+        
